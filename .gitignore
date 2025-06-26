@@ -1,0 +1,19 @@
+# Byte-compiled / optimized / C extensions
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+venv/
+.venv/
+env/
+.env
+
+# Node modules
+node_modules/
+
+# macOS
+.DS_Store
+
+# IDE / Editor folders
+.vscode/
