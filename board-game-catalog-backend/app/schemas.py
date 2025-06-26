@@ -10,7 +10,7 @@ class UserCreate(UserBase):
     password: str
 class UserLogin(UserBase):
     password: str
-class User(BaseModel):
+class UserInDB(BaseModel):
     id: int
     email: EmailStr
     is_active: bool
@@ -41,7 +41,7 @@ class GameBase(BaseModel):
     bgg_link: Optional[str] = None
 class GameCreate(GameBase):
     pass
-class Game(GameBase):
+class GameInDB(GameBase):
     id: int
     class Config:
         from_attributes = True
@@ -57,49 +57,58 @@ class UserCollectionUpdate(BaseModel):
     personal_notes: Optional[str] = None
     custom_tags: Optional[str] = None
     for_sale_trade: Optional[bool] = None
-class UserCollection(UserCollectionBase):
+class UserCollectionInDB(UserCollectionBase):
     id: int
     user_id: int
-    game: Game
+    game: GameInDB
     class Config:
         from_attributes = True
 
-# --- Wishlist Schemas ---
+# --- Wishlist Schemas (Now with Update) ---
 class WishlistBase(BaseModel):
     game_id: int
     notes: Optional[str] = None
 class WishlistCreate(WishlistBase):
     pass
-class Wishlist(WishlistBase):
+class WishlistUpdate(BaseModel):
+    notes: Optional[str] = None
+    priority: Optional[int] = None
+class WishlistInDB(WishlistBase):
     id: int
     user_id: int
-    game: Game
+    game: GameInDB
     class Config:
         from_attributes = True
 
-# --- Add the entire new section below ---
-# --- PlaySession Schemas ---
+# --- Barcode Schemas ---
+class BarcodeMappingBase(BaseModel):
+    barcode: str
+    game_id: int
+class BarcodeMappingCreate(BarcodeMappingBase):
+    pass
+class BarcodeMappingInDB(BarcodeMappingBase):
+    id: int
+    class Config:
+        from_attributes = True
+class BarcodeLookupResult(BaseModel):
+    game: Optional[GameInDB] = None
+    message: str
+    success: bool
 
-# Base class with all common, optional fields
+# --- PlaySession Schemas ---
 class PlaySessionBase(BaseModel):
     notes: Optional[str] = None
     rating: Optional[int] = None
     game_state_notes: Optional[str] = None
     players: Optional[str] = None
-
-# Schema for CREATING a play session
 class PlaySessionCreate(PlaySessionBase):
     bgg_id: int
-    date: Optional[date] = None # User can optionally provide a date
-
-# Base for the RESPONSE model, with fields guaranteed from the DB
+    date: Optional[date] = None
 class PlaySessionInDBBase(PlaySessionBase):
     id: int
     owner_id: int
     game_id: int
-    date: date # The response will ALWAYS have a date
-
-# Final RESPONSE model
+    date: date
 class PlaySession(PlaySessionInDBBase):
     class Config:
         from_attributes = True

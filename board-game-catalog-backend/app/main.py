@@ -1,32 +1,17 @@
-# board-game-catalog-backend/app/main.py
-from fastapi import FastAPI, Depends, HTTPException, status
+# app/main.py
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from app.database import engine, Base, get_db
-from app.api.endpoints import users, games, wishlists
-
-# Create all database tables
-Base.metadata.create_all(bind=engine)
+from app.api.endpoints import users, games, wishlists, plays # ADD 'plays' here
 
 app = FastAPI(
     title="Board Game Catalog API",
     description="API for managing board game collections and wishlists.",
-    version="0.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
-    # REMOVED: redirect_slashes=False from here. Will set on APIRouters.
+    version="0.2.0-alpha", # Bumped version for new feature
 )
 
-# Configure CORS - Ensure this is correctly placed and origins are exhaustive
 origins = [
-    "http://localhost",
-    "http://localhost:5173",        # Vite dev server
-    "http://127.0.0.1:5173",        # Common alternative for localhost
-    f"http://192.168.2.11:5173", # IMPORTANT: Replace with your actual current Mac IP and Vite port
-    # Your phone's IP when acting as hotspot (e.g., if you opened browser on phone directly)
-    f"http://192.168.2.11:8000", # This is the backend's address, primarily for debugging client on same device
-    # When deployed: "https://your-frontend-domain.com",
+    "http://localhost:3000",
+    "http://localhost:5173",
 ]
 
 app.add_middleware(
@@ -37,19 +22,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(games.router, prefix="/games", tags=["games"])
 app.include_router(wishlists.router, prefix="/wishlists", tags=["wishlists"])
+app.include_router(plays.router, prefix="/plays", tags=["plays"]) # ADD THIS LINE
 
 @app.get("/")
-async def root():
+def root():
     return {"message": "Welcome to the Board Game Catalog API!"}
-
-@app.get("/health")
-async def health_check(db: Session = Depends(get_db)):
-    try:
-        db.execute(Base.metadata.tables['users'].select())
-        return {"status": "ok", "database": "connected"}
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database connection failed: {e}")

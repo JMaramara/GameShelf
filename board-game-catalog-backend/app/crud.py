@@ -1,9 +1,10 @@
 # app/crud.py
-from sqlalchemy.orm import Session, joinedload # ADD joinedload here
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
 from app import models, schemas
 from passlib.context import CryptContext
 from typing import Optional, List
+from datetime import date
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -16,9 +17,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 # --- User CRUD ---
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
-
-def get_user(db: Session, user_id: int):
-    return db.query(models.User).filter(models.User.id == user_id).first()
 
 def create_user(db: Session, user: schemas.UserCreate):
     hashed_password = get_password_hash(user.password)
@@ -44,96 +42,37 @@ def create_game(db: Session, game: schemas.GameCreate):
         return get_game_by_bgg_id(db, game.bgg_id)
 
 # --- User Collection CRUD ---
-def get_user_collection_entry(db: Session, user_id: int, game_id: int):
-    # Eager load the 'game' relationship
-    return db.query(models.UserCollection).options(joinedload(models.UserCollection.game)).filter(
-        models.UserCollection.user_id == user_id,
-        models.UserCollection.game_id == game_id
-    ).first()
-
 def get_user_collections(db: Session, user_id: int, skip: int = 0, limit: int = 100):
-    # Eager load the 'game' relationship for efficient fetching
     return db.query(models.UserCollection).options(joinedload(models.UserCollection.game)).filter(models.UserCollection.user_id == user_id).offset(skip).limit(limit).all()
 
-def add_game_to_collection(db: Session, user_id: int, game_id: int, personal_notes: Optional[str] = None, custom_tags: Optional[str] = None):
-    db_collection_entry = models.UserCollection(
-        user_id=user_id,
-        game_id=game_id,
-        personal_notes=personal_notes,
-        custom_tags=custom_tags
-    )
-    db.add(db_collection_entry)
-    db.commit()
-    db.refresh(db_collection_entry)
-    return db_collection_entry
-
-def update_user_collection_entry(db: Session, collection_entry_id: int, collection_update: schemas.UserCollectionUpdate):
-    db_entry = db.query(models.UserCollection).filter(models.UserCollection.id == collection_entry_id).first()
-    if db_entry:
-        for field, value in collection_update.model_dump(exclude_unset=True).items():
-            setattr(db_entry, field, value)
-        db.commit()
-        db.refresh(db_entry) # Refresh the entry to update its state in the session
-    return db_entry
-
-def delete_user_collection_entry(db: Session, collection_entry_id: int):
-    db_entry = db.query(models.UserCollection).filter(models.UserCollection.id == collection_entry_id).first()
-    if db_entry:
-        db.delete(db_entry)
-        db.commit()
-    return db_entry
-
-# --- Barcode Mapping CRUD ---
-def get_barcode_mapping(db: Session, barcode: str):
-    return db.query(models.BarcodeMapping).filter(models.BarcodeMapping.barcode == barcode).first()
-
-def create_barcode_mapping(db: Session, barcode: str, game_id: int):
-    db_mapping = models.BarcodeMapping(barcode=barcode, game_id=game_id)
-    db.add(db_mapping)
-    try:
-        db.commit()
-        db.refresh(db_mapping)
-        return db_mapping
-    except IntegrityError:
-        db.rollback()
-        return get_barcode_mapping(db, barcode)
+# ... (other collection functions)
 
 # --- Wishlist CRUD ---
-def get_wishlist_entry(db: Session, user_id: int, game_id: int):
-    # Eager load the 'game' relationship
-    return db.query(models.Wishlist).options(joinedload(models.Wishlist.game)).filter(
-        models.Wishlist.user_id == user_id,
-        models.Wishlist.game_id == game_id
-    ).first()
-
 def get_user_wishlist(db: Session, user_id: int, skip: int = 0, limit: int = 100):
-    # Eager load the 'game' relationship for efficient fetching
     return db.query(models.Wishlist).options(joinedload(models.Wishlist.game)).filter(models.Wishlist.user_id == user_id).offset(skip).limit(limit).all()
 
-def add_game_to_wishlist(db: Session, user_id: int, game_id: int, priority: Optional[int] = None, notes: Optional[str] = None):
-    db_wishlist_entry = models.Wishlist(
-        user_id=user_id,
+# ... (other wishlist functions)
+
+# --- NEW: PlaySession CRUD ---
+def create_play_session(
+    db: Session, user_id: int, game_id: int, play_data: schemas.PlaySessionCreate
+):
+    db_play_session = models.PlaySession(
+        owner_id=user_id,
         game_id=game_id,
-        priority=priority,
-        notes=notes
+        date=play_data.date if play_data.date else date.today(),
+        notes=play_data.notes,
+        rating=play_data.rating,
+        game_state_notes=play_data.game_state_notes,
+        players=play_data.players
     )
-    db.add(db_wishlist_entry)
+    db.add(db_play_session)
     db.commit()
-    db.refresh(db_wishlist_entry)
-    return db_wishlist_entry
+    db.refresh(db_play_session)
+    return db_play_session
 
-def update_wishlist_entry(db: Session, wishlist_entry_id: int, wishlist_update: schemas.WishlistUpdate):
-    db_entry = db.query(models.Wishlist).filter(models.Wishlist.id == wishlist_entry_id).first()
-    if db_entry:
-        for field, value in wishlist_update.model_dump(exclude_unset=True).items():
-            setattr(db_entry, field, value)
-        db.commit()
-        db.refresh(db_entry)
-    return db_entry
-
-def delete_wishlist_entry(db: Session, wishlist_entry_id: int):
-    db_entry = db.query(models.Wishlist).filter(models.Wishlist.id == wishlist_entry_id).first()
-    if db_entry:
-        db.delete(db_entry)
-        db.commit()
-    return db_entry
+def get_play_sessions_for_game(db: Session, user_id: int, game_id: int, skip: int = 0, limit: int = 100):
+    return db.query(models.PlaySession).filter(
+        models.PlaySession.owner_id == user_id,
+        models.PlaySession.game_id == game_id
+    ).order_by(models.PlaySession.date.desc()).offset(skip).limit(limit).all()
