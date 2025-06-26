@@ -1,0 +1,36 @@
+/* src/components/Header.css */
+.app-header {
+  background-color: #1a1a1a;
+  padding: 1em 2em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  border-radius: 8px;
+  margin-bottom: 2em;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.8em;
+  color: #646cff;
+}
+
+.app-header .user-info {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  font-size: 0.9em;
+}
+
+.app-header button {
+  background-color: #dc3545; /* Red for logout */
+  padding: 0.4em 0.8em;
+  font-size: 0.9em;
+  border-color: #dc3545;
+}
+
+.app-header button:hover {
+  background-color: #c82333;
+  border-color: #c82333;
+}
