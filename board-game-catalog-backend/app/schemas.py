@@ -1,31 +1,24 @@
 # app/schemas.py
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
-from datetime import datetime
+from datetime import date, datetime
 
 # --- User Schemas ---
 class UserBase(BaseModel):
     email: EmailStr
-
 class UserCreate(UserBase):
     password: str
-
 class UserLogin(UserBase):
     password: str
-
-class UserInDB(UserBase):
+class User(BaseModel):
     id: int
+    email: EmailStr
     is_active: bool
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
     class Config:
         from_attributes = True
-
 class Token(BaseModel):
     access_token: str
     token_type: str
-
 class TokenData(BaseModel):
     email: Optional[str] = None
 
@@ -46,15 +39,10 @@ class GameBase(BaseModel):
     bgg_rating: Optional[str] = None
     bgg_num_voters: Optional[int] = None
     bgg_link: Optional[str] = None
-
 class GameCreate(GameBase):
-    pass # No extra fields for creation, inherits from GameBase
-
-class GameInDB(GameBase):
+    pass
+class Game(GameBase):
     id: int
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
     class Config:
         from_attributes = True
 
@@ -63,71 +51,55 @@ class UserCollectionBase(BaseModel):
     game_id: int
     personal_notes: Optional[str] = None
     custom_tags: Optional[str] = None
-    times_played: Optional[int] = 0
-
 class UserCollectionCreate(UserCollectionBase):
     pass
-
 class UserCollectionUpdate(BaseModel):
     personal_notes: Optional[str] = None
     custom_tags: Optional[str] = None
-    times_played: Optional[int] = None
-    for_sale_trade: Optional[bool] = None  
-    sale_trade_notes: Optional[str] = None  
-
-class UserCollectionInDB(UserCollectionBase):
+    for_sale_trade: Optional[bool] = None
+class UserCollection(UserCollectionBase):
     id: int
     user_id: int
-    owned_date: datetime
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    game: GameInDB # Include game details when fetching collection
-    for_sale_trade: bool  # ADD THIS LINE
-    sale_trade_notes: Optional[str] = None
-
+    game: Game
     class Config:
         from_attributes = True
 
 # --- Wishlist Schemas ---
 class WishlistBase(BaseModel):
     game_id: int
-    priority: Optional[int] = 1
     notes: Optional[str] = None
-
 class WishlistCreate(WishlistBase):
     pass
-
-class WishlistUpdate(BaseModel):
-    priority: Optional[int] = None
-    notes: Optional[str] = None
-
-class WishlistInDB(WishlistBase):
+class Wishlist(WishlistBase):
     id: int
     user_id: int
-    added_date: datetime
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    game: GameInDB # Include game details when fetching wishlist
-
+    game: Game
     class Config:
         from_attributes = True
 
-# --- Barcode Mapping Schemas ---
-class BarcodeMappingBase(BaseModel):
-    barcode: str
-    game_id: int
+# --- Add the entire new section below ---
+# --- PlaySession Schemas ---
 
-class BarcodeMappingCreate(BarcodeMappingBase):
-    pass
+# Base class with all common, optional fields
+class PlaySessionBase(BaseModel):
+    notes: Optional[str] = None
+    rating: Optional[int] = None
+    game_state_notes: Optional[str] = None
+    players: Optional[str] = None
 
-class BarcodeMappingInDB(BarcodeMappingBase):
+# Schema for CREATING a play session
+class PlaySessionCreate(PlaySessionBase):
+    bgg_id: int
+    date: Optional[date] = None # User can optionally provide a date
+
+# Base for the RESPONSE model, with fields guaranteed from the DB
+class PlaySessionInDBBase(PlaySessionBase):
     id: int
-    created_at: datetime
+    owner_id: int
+    game_id: int
+    date: date # The response will ALWAYS have a date
 
+# Final RESPONSE model
+class PlaySession(PlaySessionInDBBase):
     class Config:
         from_attributes = True
-
-class BarcodeLookupResult(BaseModel):
-    game: Optional[GameInDB] = None
-    message: str
-    success: bool
