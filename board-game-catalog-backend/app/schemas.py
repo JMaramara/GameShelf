@@ -69,7 +69,7 @@ class WishlistBase(BaseModel):
     game_id: int
     notes: Optional[str] = None
 class WishlistCreate(WishlistBase):
-    pass
+    priority: Optional[int] = 1
 class WishlistUpdate(BaseModel):
     notes: Optional[str] = None
     priority: Optional[int] = None
