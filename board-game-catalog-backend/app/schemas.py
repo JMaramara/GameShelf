@@ -103,7 +103,11 @@ class PlaySessionBase(BaseModel):
     players: Optional[str] = None
 class PlaySessionCreate(PlaySessionBase):
     bgg_id: int
-    date: Optional[date] = None
+    date: Optional[str] = None 
+    notes: Optional[str] = None
+    rating: Optional[int] = None
+    game_state_notes: Optional[str] = None
+    players: Optional[str] = None
 class PlaySessionInDBBase(PlaySessionBase):
     id: int
     owner_id: int

@@ -123,19 +123,23 @@ def delete_wishlist_entry(db: Session, entry_id: int):
     return db_entry
 
 # --- PlaySession CRUD ---
+
 def create_play_session(
     db: Session, user_id: int, game_id: int, play_data: schemas.PlaySessionCreate
 ):
-    final_date = date.today()
-    if play_data.date:
+    final_date = date.today() # Default to today
+    if play_data.date: # If the user provided a date string...
         try:
+            # ...try to parse it from 'YYYY-MM-DD' format
             final_date = datetime.strptime(play_data.date, "%Y-%m-%d").date()
         except (ValueError, TypeError):
+            # If parsing fails for any reason, just use today's date
             pass
+
     db_play_session = models.PlaySession(
         owner_id=user_id,
         game_id=game_id,
-        date=final_date,
+        date=final_date, # Use our parsed or default date
         notes=play_data.notes,
         rating=play_data.rating,
         game_state_notes=play_data.game_state_notes,
