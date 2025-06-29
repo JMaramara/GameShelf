@@ -9,6 +9,12 @@ venv/
 env/
 .env
 
+# FastAPI
+*.log
+
+# Alembic migration logs
+alembic/versions/__pycache__/
+
 # Node modules
 node_modules/
 

@@ -20,7 +20,7 @@ const AppStack = () => {
       <Stack.Screen name="AddToWishlist" component={AddToWishlistScreen} options={{ title: 'Add to Wishlist' }} />
       <Stack.Screen name="GameDetail" component={GameDetailScreen} options={{ title: 'Game Details' }} />
       {/* --- ADD THIS NEW SCREEN --- */}
-      <Stack.Screen name="LogPlay" component={LogPlayScreen} options={{ title: 'Log a Play' }} />
+      <Stack.Screen name="LogPlay" component={LogPlayScreen} options={{ title: 'Log Play' }} />
     </Stack.Navigator>
   );
 };
