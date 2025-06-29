@@ -116,3 +116,8 @@ class PlaySessionInDBBase(PlaySessionBase):
 class PlaySession(PlaySessionInDBBase):
     class Config:
         from_attributes = True
+# --- User Stats schema ---
+class UserStats(BaseModel):
+    collection_count: int
+    wishlist_count: int
+    plays_count: int

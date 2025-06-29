@@ -8,12 +8,13 @@ const LogPlayScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  
   const [isModalVisible, setModalVisible] = useState(false);
   const [selectedGame, setSelectedGame] = useState(null);
 
   const handleSearch = async () => {
-    if (searchQuery.length < 3) {
-      Alert.alert('Search too short', 'Please enter at least 3 characters.');
+    if (searchQuery.length < 2) {
+      Alert.alert('Search too short', 'Please enter at least 2 characters to search.');
       return;
     }
     setIsLoading(true);
@@ -22,6 +23,7 @@ const LogPlayScreen = ({ navigation }) => {
       const response = await api.searchBGG(searchQuery);
       setSearchResults(response.data);
     } catch (error) {
+      console.error('Search failed:', error);
       Alert.alert('Error', 'Could not perform search.');
     } finally {
       setIsLoading(false);
@@ -38,11 +40,13 @@ const LogPlayScreen = ({ navigation }) => {
     try {
       await api.logPlaySession(selectedGame.bgg_id, playData);
       Alert.alert('Success', `Play session for ${selectedGame.title} logged successfully!`);
+      // Reset everything after success
       setModalVisible(false);
       setSelectedGame(null);
       setSearchQuery('');
       setSearchResults([]);
     } catch (error) {
+      console.error('Error logging play session:', error.response?.data);
       Alert.alert('Error', 'Could not log the play session.');
     }
   };
@@ -55,8 +59,7 @@ const LogPlayScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Log a Play</Text>
-      <Text style={styles.instructions}>Search for the game you played:</Text>
+      <Text style={styles.instructions}>Search for the game you played</Text>
       <TextInput
         style={styles.searchInput}
         placeholder="e.g., Wingspan, Catan..."
@@ -66,13 +69,16 @@ const LogPlayScreen = ({ navigation }) => {
         returnKeyType="search"
       />
       <Button title="Search Games" onPress={handleSearch} />
+
       {isLoading && <ActivityIndicator size="large" style={{ marginTop: 20 }} />}
+      
       <FlatList
         data={searchResults}
         keyExtractor={(item) => item.bgg_id.toString()}
         renderItem={renderSearchResultItem}
         style={{ marginTop: 20 }}
       />
+      
       {selectedGame && (
           <LogPlayModal
             visible={isModalVisible}
@@ -86,12 +92,39 @@ const LogPlayScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#f5f5f5' },
-  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
-  instructions: { textAlign: 'center', color: '#666', marginBottom: 20 },
-  searchInput: { height: 40, borderColor: '#ccc', borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, marginBottom: 10, backgroundColor: '#fff' },
-  resultItem: { backgroundColor: '#fff', padding: 15, borderRadius: 8, marginBottom: 10, borderWidth: 1, borderColor: '#eee' },
-  resultTitle: { fontSize: 16, fontWeight: '500' },
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  instructions: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 15,
+  },
+  searchInput: {
+    height: 45,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    backgroundColor: '#fff',
+    fontSize: 16,
+  },
+  resultItem: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  resultTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
 });
 
 export default LogPlayScreen;

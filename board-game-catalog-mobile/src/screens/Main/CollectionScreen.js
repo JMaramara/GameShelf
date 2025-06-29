@@ -101,7 +101,7 @@ const CollectionScreen = ({ navigation }) => {
       <Text style={styles.title}>My Collection</Text>
       <View style={styles.buttonRow}>
         <Button title="Add New Game" onPress={() => navigation.navigate('AddGame')} />
-        <Button title="Log a Play" onPress={() => navigation.navigate('LogPlay')} />
+        <Button title="Log Play" onPress={() => navigation.navigate('LogPlay')} />
         <Button title="Go to Wishlist" onPress={() => navigation.navigate('Wishlist')} />
       </View>
       <FlatList

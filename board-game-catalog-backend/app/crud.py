@@ -1,17 +1,9 @@
 # app/crud.py
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app import models, schemas
-from passlib.context import CryptContext
+from app.core.security import get_password_hash # Correctly import from security
 from typing import Optional, List
 from datetime import date, datetime
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
 
 # --- User CRUD ---
 def get_user_by_email(db: Session, email: str):
@@ -36,9 +28,9 @@ def create_game(db: Session, game: schemas.GameCreate):
     db.refresh(db_game)
     return db_game
 
-# --- User Collection CRUD ---
+# --- User Collection CRUD (Restoring missing function) ---
 def get_user_collection_entry(db: Session, user_id: int, game_id: int):
-    return db.query(models.UserCollection).join(models.UserCollection.game).filter(
+    return db.query(models.UserCollection).filter(
         models.UserCollection.user_id == user_id,
         models.UserCollection.game_id == game_id
     ).first()
@@ -61,13 +53,12 @@ def update_user_collection_entry(db: Session, collection_entry_id: int, collecti
     db_entry = db.query(models.UserCollection).filter(models.UserCollection.id == collection_entry_id).first()
     if not db_entry:
         return None
-    
     update_data = collection_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_entry, key, value)
-        
     db.add(db_entry)
     db.commit()
+    db.refresh(db_entry)
     return db_entry
 
 def delete_user_collection_entry(db: Session, entry_id: int):
@@ -77,7 +68,13 @@ def delete_user_collection_entry(db: Session, entry_id: int):
         db.commit()
     return db_entry
 
-# --- Wishlist CRUD ---
+# --- Wishlist CRUD (Restoring missing function) ---
+def get_wishlist_entry(db: Session, user_id: int, game_id: int):
+    return db.query(models.Wishlist).filter(
+        models.Wishlist.user_id == user_id,
+        models.Wishlist.game_id == game_id
+    ).first()
+
 def get_user_wishlist(db: Session, user_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.Wishlist).join(models.Game).filter(
         models.Wishlist.user_id == user_id
@@ -95,6 +92,16 @@ def delete_wishlist_entry(db: Session, entry_id: int):
     if db_entry:
         db.delete(db_entry)
         db.commit()
+    return db_entry
+
+def update_wishlist_entry(db: Session, wishlist_entry_id: int, wishlist_update: schemas.WishlistUpdate):
+    db_entry = db.query(models.Wishlist).filter(models.Wishlist.id == wishlist_entry_id).first()
+    if db_entry:
+        update_data = wishlist_update.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(db_entry, field, value)
+        db.commit()
+        db.refresh(db_entry)
     return db_entry
 
 # --- PlaySession CRUD ---
@@ -120,3 +127,10 @@ def get_play_sessions_for_game(db: Session, user_id: int, game_id: int, skip: in
         models.PlaySession.owner_id == user_id,
         models.PlaySession.game_id == game_id
     ).order_by(models.PlaySession.date.desc()).offset(skip).limit(limit).all()
+
+# --- User Stats CRUD ---
+def get_user_stats(db: Session, user_id: int):
+    collection_count = db.query(models.UserCollection).filter(models.UserCollection.user_id == user_id).count()
+    wishlist_count = db.query(models.Wishlist).filter(models.Wishlist.user_id == user_id).count()
+    plays_count = db.query(models.PlaySession).filter(models.PlaySession.owner_id == user_id).count()
+    return {"collection_count": collection_count, "wishlist_count": wishlist_count, "plays_count": plays_count}
