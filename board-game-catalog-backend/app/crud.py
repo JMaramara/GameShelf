@@ -38,7 +38,7 @@ def create_game(db: Session, game: schemas.GameCreate):
 
 # --- User Collection CRUD ---
 def get_user_collection_entry(db: Session, user_id: int, game_id: int):
-    return db.query(models.UserCollection).filter(
+    return db.query(models.UserCollection).join(models.UserCollection.game).filter(
         models.UserCollection.user_id == user_id,
         models.UserCollection.game_id == game_id
     ).first()
@@ -46,16 +46,11 @@ def get_user_collection_entry(db: Session, user_id: int, game_id: int):
 def get_user_collections(db: Session, user_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.UserCollection).join(models.Game).filter(
         models.UserCollection.user_id == user_id
-    ).order_by(
-        models.Game.title
-    ).offset(skip).limit(limit).all()
+    ).order_by(models.Game.title).offset(skip).limit(limit).all()
 
 def add_game_to_collection(db: Session, user_id: int, game_id: int, personal_notes: Optional[str] = None, custom_tags: Optional[str] = None):
     db_collection_entry = models.UserCollection(
-        user_id=user_id, 
-        game_id=game_id, 
-        personal_notes=personal_notes, 
-        custom_tags=custom_tags
+        user_id=user_id, game_id=game_id, personal_notes=personal_notes, custom_tags=custom_tags
     )
     db.add(db_collection_entry)
     db.commit()
@@ -64,12 +59,15 @@ def add_game_to_collection(db: Session, user_id: int, game_id: int, personal_not
 
 def update_user_collection_entry(db: Session, collection_entry_id: int, collection_update: schemas.UserCollectionUpdate):
     db_entry = db.query(models.UserCollection).filter(models.UserCollection.id == collection_entry_id).first()
-    if db_entry:
-        update_data = collection_update.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(db_entry, field, value)
-        db.commit()
-        db.refresh(db_entry)
+    if not db_entry:
+        return None
+    
+    update_data = collection_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_entry, key, value)
+        
+    db.add(db_entry)
+    db.commit()
     return db_entry
 
 def delete_user_collection_entry(db: Session, entry_id: int):
@@ -80,40 +78,17 @@ def delete_user_collection_entry(db: Session, entry_id: int):
     return db_entry
 
 # --- Wishlist CRUD ---
-def get_wishlist_entry(db: Session, user_id: int, game_id: int):
-    return db.query(models.Wishlist).filter(
-        models.Wishlist.user_id == user_id,
-        models.Wishlist.game_id == game_id
-    ).first()
-
 def get_user_wishlist(db: Session, user_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.Wishlist).join(models.Game).filter(
         models.Wishlist.user_id == user_id
-    ).order_by(
-        models.Game.title
-    ).offset(skip).limit(limit).all()
+    ).order_by(models.Game.title).offset(skip).limit(limit).all()
 
 def add_game_to_wishlist(db: Session, user_id: int, game_id: int, priority: Optional[int] = 1, notes: Optional[str] = None):
-    db_wishlist_entry = models.Wishlist(
-        user_id=user_id, 
-        game_id=game_id,
-        priority=priority,
-        notes=notes
-    )
+    db_wishlist_entry = models.Wishlist(user_id=user_id, game_id=game_id, priority=priority, notes=notes)
     db.add(db_wishlist_entry)
     db.commit()
     db.refresh(db_wishlist_entry)
     return db_wishlist_entry
-
-def update_wishlist_entry(db: Session, wishlist_entry_id: int, wishlist_update: schemas.WishlistUpdate):
-    db_entry = db.query(models.Wishlist).filter(models.Wishlist.id == wishlist_entry_id).first()
-    if db_entry:
-        update_data = wishlist_update.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(db_entry, field, value)
-        db.commit()
-        db.refresh(db_entry)
-    return db_entry
 
 def delete_wishlist_entry(db: Session, entry_id: int):
     db_entry = db.query(models.Wishlist).filter(models.Wishlist.id == entry_id).first()
@@ -123,27 +98,17 @@ def delete_wishlist_entry(db: Session, entry_id: int):
     return db_entry
 
 # --- PlaySession CRUD ---
-
-def create_play_session(
-    db: Session, user_id: int, game_id: int, play_data: schemas.PlaySessionCreate
-):
-    final_date = date.today() # Default to today
-    if play_data.date: # If the user provided a date string...
+def create_play_session(db: Session, user_id: int, game_id: int, play_data: schemas.PlaySessionCreate):
+    final_date = date.today()
+    if play_data.date:
         try:
-            # ...try to parse it from 'YYYY-MM-DD' format
             final_date = datetime.strptime(play_data.date, "%Y-%m-%d").date()
         except (ValueError, TypeError):
-            # If parsing fails for any reason, just use today's date
             pass
-
     db_play_session = models.PlaySession(
-        owner_id=user_id,
-        game_id=game_id,
-        date=final_date, # Use our parsed or default date
-        notes=play_data.notes,
-        rating=play_data.rating,
-        game_state_notes=play_data.game_state_notes,
-        players=play_data.players
+        owner_id=user_id, game_id=game_id, date=final_date,
+        notes=play_data.notes, rating=play_data.rating,
+        game_state_notes=play_data.game_state_notes, players=play_data.players
     )
     db.add(db_play_session)
     db.commit()
