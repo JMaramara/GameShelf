@@ -6,7 +6,8 @@ import { getUserCollection, deleteCollectionEntry } from '../../api/api';
 import { useFocusEffect } from '@react-navigation/native';
 
 const CollectionScreen = ({ navigation }) => {
-  const { logout, userToken } = useContext(AuthContext);
+  // This line is now restored to correctly get the logout function
+  const { logout, userToken } = useContext(AuthContext); 
   const [collection, setCollection] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -43,7 +44,7 @@ const CollectionScreen = ({ navigation }) => {
           onPress: async () => {
             try {
               await deleteCollectionEntry(entryId);
-              fetchCollection(); // Refresh the list
+              fetchCollection();
             } catch (e) {
               Alert.alert('Error', 'Failed to remove game from collection.');
             }
@@ -57,14 +58,14 @@ const CollectionScreen = ({ navigation }) => {
   const renderGameItem = ({ item }) => (
     <TouchableOpacity
       style={styles.gameItem}
-      // --- THIS IS THE FINAL FIX ---
-      // It now sends the whole 'item' as a single package named 'collectionEntry'
       onPress={() => navigation.navigate('GameDetail', { collectionEntry: item })}
     >
       <Text style={styles.gameTitle}>{item.game?.title || 'Unknown Title'}</Text>
       <Text style={styles.gameInfo}>Players: {item.game?.min_players}-{item.game?.max_players}</Text>
       <Text style={styles.gameInfo}>Playing Time: {item.game?.playing_time_min}-{item.game?.playing_time_max} min</Text>
-
+      
+      {item.for_sale_trade && <Text style={styles.forSaleTradeText}>FOR SALE/TRADE!</Text>}
+      
       <TouchableOpacity
         style={styles.removeButton}
         onPress={(e) => {
@@ -100,6 +101,7 @@ const CollectionScreen = ({ navigation }) => {
       <Text style={styles.title}>My Collection</Text>
       <View style={styles.buttonRow}>
         <Button title="Add New Game" onPress={() => navigation.navigate('AddGame')} />
+        <Button title="Log a Play" onPress={() => navigation.navigate('LogPlay')} />
         <Button title="Go to Wishlist" onPress={() => navigation.navigate('Wishlist')} />
       </View>
       <FlatList
@@ -129,7 +131,13 @@ const styles = StyleSheet.create({
   emptyText: { textAlign: 'center', marginTop: 50, fontSize: 16, color: '#888' },
   removeButton: { backgroundColor: '#dc3545', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 5, marginTop: 10, alignSelf: 'flex-start' },
   removeButtonText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
-  logoutButton: { margin: 10 }
+  logoutButton: { margin: 10 },
+  forSaleTradeText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#28a745',
+    marginTop: 8,
+  },
 });
 
 export default CollectionScreen;
