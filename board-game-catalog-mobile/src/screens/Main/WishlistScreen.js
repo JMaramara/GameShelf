@@ -1,135 +1,82 @@
 // src/screens/Main/WishlistScreen.js
-import React, { useContext, useEffect, useState, useCallback } from 'react';
-import { View, Text, Button, StyleSheet, ActivityIndicator, FlatList, Alert, Image, TouchableOpacity } from 'react-native';
-import { AuthContext } from '../../context/AuthContext';
-import { getUserWishlist, deleteWishlistEntry, addGameToCollection } from '../../api/api';
+import React, { useState, useCallback, useContext } from 'react';
+import { View, Text, FlatList, Button, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { AuthContext } from '../../context/AuthContext';
+import * as api from '../../api/api';
 
-const WishlistScreen = ({ navigation }) => { // Pay extreme attention to this line
-  const { userToken } = useContext(AuthContext);
+const WishlistScreen = ({ navigation }) => {
   const [wishlist, setWishlist] = useState([]);
-  const [isLoadingWishlist, setIsLoadingWishlist] = useState(true);
-  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { userToken } = useContext(AuthContext);
 
-  const fetchWishlist = async () => {
-    setIsLoadingWishlist(true);
-    setError(null);
+  const fetchWishlist = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const response = await getUserWishlist();
+      const response = await api.getUserWishlist();
       setWishlist(response.data);
-    } catch (e) {
-      console.error('Failed to fetch wishlist:', e.response?.data || e.message);
-      setError('Failed to load wishlist. Please try again.');
+    } catch (error) {
+      console.error("Failed to fetch wishlist:", error);
+      Alert.alert("Error", "Could not load your wishlist.");
     } finally {
-      setIsLoadingWishlist(false);
+      setIsLoading(false);
     }
-  };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       if (userToken) {
         fetchWishlist();
       }
-    }, [userToken])
+    }, [userToken, fetchWishlist])
   );
 
-  const handleDeleteWishlistEntry = async (entryId, gameTitle) => {
-    Alert.alert(
-      "Confirm Deletion",
-      `Are you sure you want to remove "${gameTitle}" from your wishlist?`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Delete",
-          onPress: async () => {
-            try {
-              await deleteWishlistEntry(entryId);
-              Alert.alert('Success', `${gameTitle} removed from wishlist.`);
-              fetchWishlist();
-            } catch (e) {
-              console.error('Error deleting wishlist entry:', e.response?.data || e.message);
-              Alert.alert('Error', e.response?.data?.detail || 'Failed to remove game from wishlist.');
-            }
-          },
-          style: "destructive"
-        }
-      ]
-    );
-  };
-
-  const handleMoveToCollection = async (wishlistEntryId, gameBggId, gameTitle) => {
-    Alert.alert(
-      "Move to Collection",
-      `Are you sure you want to move "${gameTitle}" to your owned collection?`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Move",
-          onPress: async () => {
-            try {
-              await addGameToCollection(gameBggId, '', '');
-              await deleteWishlistEntry(wishlistEntryId);
-              Alert.alert('Success', `${gameTitle} moved to your collection and removed from wishlist!`);
-              fetchWishlist();
-            } catch (e) {
-              console.error('Error moving to collection:', e.response?.data || e.message);
-              Alert.alert('Error', e.response?.data?.detail || 'Failed to move game to collection.');
-            }
-          }
-        }
-      ]
-    );
+  const handleMoveToCollection = async (item) => {
+    try {
+      // --- THIS IS THE FIX ---
+      // We now pass an object to the API function, as required
+      await api.addGameToCollection({ game_id: item.game.bgg_id });
+      // After adding to collection, remove from wishlist
+      await api.deleteWishlistEntry(item.id);
+      Alert.alert('Success', `"${item.game.title}" moved to your collection!`);
+      // Refresh the wishlist
+      fetchWishlist();
+    } catch (error) {
+      console.error("Error moving to collection:", error.response?.data || error);
+       if (error.response?.status === 409) {
+        Alert.alert("Already Owned", "This game is already in your collection.");
+      } else {
+        Alert.alert("Error", "Could not move game to collection.");
+      }
+    }
   };
 
   const renderWishlistItem = ({ item }) => (
-    <View style={styles.wishlistItem}>
-      <Image source={{ uri: item.game?.thumbnail_url || 'https://via.placeholder.com/100' }} style={styles.thumbnail} />
-      <View style={styles.wishlistInfo}>
-        <Text style={styles.gameTitle}>{item.game?.title || 'Unknown Title'}</Text>
-        {item.priority && <Text style={styles.gameDetail}>Priority: {item.priority}</Text>}
-        {item.notes && <Text style={styles.gameDetail}>Notes: {item.notes}</Text>}
-      </View>
-      <View style={styles.buttonsContainer}>
-        <Button title="Move to Owned" onPress={() => handleMoveToCollection(item.id, item.game.bgg_id, item.game?.title)} />
-        <Button title="Delete" onPress={() => handleDeleteWishlistEntry(item.id, item.game?.title)} color="red" />
+    <View style={styles.gameItem}>
+      <Text style={styles.gameTitle}>{item.game?.title}</Text>
+      <Text style={styles.gameInfo}>Added on: {new Date(item.added_date).toLocaleDateString()}</Text>
+      <View style={styles.buttonContainer}>
+        <Button title="Move to Collection" onPress={() => handleMoveToCollection(item)} />
       </View>
     </View>
   );
 
-  if (isLoadingWishlist) {
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text>Loading Wishlist...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Button title="Retry" onPress={fetchWishlist} />
+        <ActivityIndicator size="large" />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.screenTitle}>My Wishlist</Text>
-      <Button title="Add to Wishlist" onPress={() => navigation.navigate('AddToWishlist')} />
       <FlatList
         data={wishlist}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderWishlistItem}
-        ListEmptyComponent={<Text style={styles.emptyText}>Your wishlist is empty. Add some games!</Text>}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        ListHeaderComponent={<Text style={styles.title}>My Wishlist</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>Your wishlist is empty.</Text>}
       />
     </View>
   );
@@ -138,7 +85,7 @@ const WishlistScreen = ({ navigation }) => { // Pay extreme attention to this li
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    padding: 10,
     backgroundColor: '#f5f5f5',
   },
   loadingContainer: {
@@ -146,64 +93,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    color: 'red',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  screenTitle: {
+  title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
     textAlign: 'center',
+    marginVertical: 10,
   },
-  wishlistItem: {
-    flexDirection: 'row',
+  gameItem: {
     backgroundColor: '#fff',
     padding: 15,
     borderRadius: 8,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    alignItems: 'center',
-  },
-  thumbnail: {
-    width: 70,
-    height: 70,
-    borderRadius: 4,
-    marginRight: 15,
-  },
-  wishlistInfo: {
-    flex: 1,
+    marginVertical: 5,
+    marginHorizontal: 10,
   },
   gameTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 5,
   },
-  gameDetail: {
+  gameInfo: {
     fontSize: 14,
-    color: '#555',
+    color: '#666',
+    marginTop: 5,
   },
-  buttonsContainer: {
-    marginLeft: 10,
-    justifyContent: 'space-around',
-    alignItems: 'flex-end',
-    height: 70,
+  buttonContainer: {
+    marginTop: 10,
   },
   emptyText: {
     textAlign: 'center',
     marginTop: 50,
     fontSize: 16,
     color: '#888',
-  }
+  },
 });
 
 export default WishlistScreen;
