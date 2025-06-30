@@ -1,9 +1,10 @@
 // src/screens/Main/DashboardScreen.js
 import React, { useState, useCallback, useContext } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert, RefreshControl, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Button, ActivityIndicator, Alert, RefreshControl, ScrollView, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../../context/AuthContext';
 import * as api from '../../api/api';
+import ROUTES from '../../navigation/routes';
 
 const StatCard = ({ label, value, color }) => (
   <View style={[styles.statCard, { borderTopColor: color }]}>
@@ -24,6 +25,16 @@ const DashboardScreen = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // --- THIS IS THE CORRECTED HOOK ---
+  useFocusEffect(
+    useCallback(() => {
+      // Only pop to top if we can go back, to prevent the error on initial load
+      if (navigation.canGoBack()) {
+        navigation.popToTop();
+      }
+    }, [navigation])
+  );
+
   const fetchStats = useCallback(async () => {
     try {
       const response = await api.getMyStats();
@@ -37,7 +48,7 @@ const DashboardScreen = ({ navigation }) => {
   }, []);
 
   useFocusEffect(useCallback(() => { setIsLoading(true); fetchStats(); }, [fetchStats]));
-
+  
   const onRefresh = () => { setRefreshing(true); fetchStats(); }
 
   if (isLoading) {
@@ -46,8 +57,9 @@ const DashboardScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <ScrollView
+      <ScrollView 
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          contentContainerStyle={styles.scrollViewContent}
       >
         <Text style={styles.title}>GameShelf</Text>
         <View style={styles.statsContainer}>
@@ -58,9 +70,8 @@ const DashboardScreen = ({ navigation }) => {
 
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.mainActions}>
-            {/* --- THIS IS THE FIX --- */}
-            <AppButton title="Add Game" onPress={() => navigation.navigate('AddGame')} style={{backgroundColor: '#5bc0de'}} />
-            <AppButton title="Log Play" onPress={() => navigation.navigate('LogPlay')} style={{backgroundColor: '#5cb85c'}} />
+            <AppButton title="Add Game" onPress={() => navigation.navigate(ROUTES.ADD_GAME)} style={{backgroundColor: '#5bc0de'}} />
+            <AppButton title="Log Play" onPress={() => navigation.navigate(ROUTES.LOG_PLAY)} style={{backgroundColor: '#5cb85c'}} />
         </View>
       </ScrollView>
     </View>
@@ -68,7 +79,8 @@ const DashboardScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5', paddingTop: 20 },
+  container: { flex: 1, backgroundColor: '#f0f2f5' },
+  scrollViewContent: { paddingTop: 40, paddingBottom: 20 }, // Added padding
   title: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginVertical: 10, color: '#333' },
   sectionTitle: { fontSize: 18, fontWeight: '600', color: '#495057', paddingHorizontal: 30, marginTop: 30, marginBottom: 15 },
   statsContainer: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 20, paddingHorizontal: 10 },
