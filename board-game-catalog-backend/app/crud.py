@@ -134,3 +134,6 @@ def get_user_stats(db: Session, user_id: int):
     wishlist_count = db.query(models.Wishlist).filter(models.Wishlist.user_id == user_id).count()
     plays_count = db.query(models.PlaySession).filter(models.PlaySession.owner_id == user_id).count()
     return {"collection_count": collection_count, "wishlist_count": wishlist_count, "plays_count": plays_count}
+
+def get_all_user_plays(db: Session, user_id: int, skip: int = 0, limit: int = 100):
+    return db.query(models.PlaySession).filter(models.PlaySession.owner_id == user_id).order_by(models.PlaySession.date.desc()).offset(skip).limit(limit).all()

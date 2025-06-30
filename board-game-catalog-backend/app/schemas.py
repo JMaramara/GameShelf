@@ -121,3 +121,7 @@ class UserStats(BaseModel):
     collection_count: int
     wishlist_count: int
     plays_count: int
+
+# --- game details with each play log ---
+class PlaySessionWithGame(PlaySession):
+    game: GameInDB
