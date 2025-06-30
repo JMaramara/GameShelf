@@ -6,20 +6,20 @@ import AddGameScreen from '../screens/Main/AddGameScreen';
 import WishlistScreen from '../screens/Main/WishlistScreen';
 import AddToWishlistScreen from '../screens/Main/AddToWishlistScreen';
 import GameDetailScreen from '../screens/Main/GameDetailScreen';
-// --- ADD THIS NEW IMPORT ---
 import LogPlayScreen from '../screens/Main/LogPlayScreen';
+import DashboardScreen from '../screens/Main/DashboardScreen';
 
 const Stack = createStackNavigator();
 
 const AppStack = () => {
   return (
-    <Stack.Navigator>
-      <Stack.Screen name="Collection" component={CollectionScreen} options={{ title: 'My Collection' }} />
+    <Stack.Navigator initialRouteName="Dashboard">
+      <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'GameShelf' }} />
+      <Stack.Screen name="Collection" component={CollectionScreen} options={{ title: 'My Full Collection' }} />
       <Stack.Screen name="AddGame" component={AddGameScreen} options={{ title: 'Add Game' }} />
       <Stack.Screen name="Wishlist" component={WishlistScreen} options={{ title: 'My Wishlist' }} />
       <Stack.Screen name="AddToWishlist" component={AddToWishlistScreen} options={{ title: 'Add to Wishlist' }} />
       <Stack.Screen name="GameDetail" component={GameDetailScreen} options={{ title: 'Game Details' }} />
-      {/* --- ADD THIS NEW SCREEN --- */}
       <Stack.Screen name="LogPlay" component={LogPlayScreen} options={{ title: 'Log Play' }} />
     </Stack.Navigator>
   );

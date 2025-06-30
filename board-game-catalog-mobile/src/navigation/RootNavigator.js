@@ -3,7 +3,10 @@ import React, { useContext } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import AuthStack from './AuthStack';
-import AppStack from './AppStack';
+// --- REMOVE THE OLD APP STACK ---
+// import AppStack from './AppStack'; 
+// --- IMPORT THE NEW TAB NAVIGATOR ---
+import MainTabNavigator from './MainTabNavigator'; 
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 
 const RootNavigator = () => {
@@ -19,7 +22,8 @@ const RootNavigator = () => {
 
   return (
     <NavigationContainer>
-      {userToken ? <AppStack /> : <AuthStack />}
+      {/* --- USE THE NEW TAB NAVIGATOR WHEN LOGGED IN --- */}
+      {userToken ? <MainTabNavigator /> : <AuthStack />}
     </NavigationContainer>
   );
 };
