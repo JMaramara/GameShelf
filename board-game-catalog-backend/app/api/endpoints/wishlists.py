@@ -1,14 +1,38 @@
-# board-game-catalog-backend/app/api/endpoints/wishlists.py
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+# app/api/endpoints/wishlists.py
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 
 from app import crud, schemas, models
-from app.database import get_db
 from app.api.deps import get_current_user
+from app.database import get_db
 from app.services import bgg_api
 
-router = APIRouter(redirect_slashes=False)
+router = APIRouter()
+
+def get_or_create_game(db: Session, bgg_id: int) -> models.Game:
+    """
+    Helper to ensure a game exists in our local DB before adding to wishlist.
+    """
+    db_game = crud.get_game_by_bgg_id(db, bgg_id=bgg_id)
+    if db_game:
+        return db_game
+    try:
+        bgg_details = bgg_api.get_bgg_game_details(bgg_id)
+        if not bgg_details:
+            raise HTTPException(status_code=404, detail=f"Game with BGG ID {bgg_id} not found.")
+        game_to_create = schemas.GameCreate(**bgg_details)
+        return crud.create_game(db=db, game=game_to_create)
+    except bgg_api.BGGAPIError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+@router.get("/", response_model=List[schemas.WishlistInDB])
+def get_user_wishlist(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieves all games in the current user's wishlist."""
+    return crud.get_user_wishlist(db, user_id=current_user.id)
 
 @router.post("/", response_model=schemas.WishlistInDB, status_code=status.HTTP_201_CREATED)
 def add_game_to_user_wishlist(
@@ -17,78 +41,47 @@ def add_game_to_user_wishlist(
     db: Session = Depends(get_db)
 ):
     """Adds a game to the current user's wishlist."""
-    game_in_db = crud.get_game_by_bgg_id(db, bgg_id=wishlist_data.game_id)
-    if not game_in_db:
-        try:
-            bgg_details = bgg_api.get_bgg_game_details(wishlist_data.game_id)
-            if bgg_details:
-                game_in_db = crud.create_game(db=db, game=schemas.GameCreate(**bgg_details))
-            else:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found on BoardGameGeek and cannot be added to wishlist.")
-        except bgg_api.BGGAPIError as e:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Failed to retrieve game details from BGG: {e}")
-        except Exception as e:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred: {e}")
+    game_in_db = get_or_create_game(db, bgg_id=wishlist_data.game_id)
+
+    # Check if game is already in collection
+    collection_entry = crud.get_user_collection_entry(db, user_id=current_user.id, game_id=game_in_db.id)
+    if collection_entry:
+        raise HTTPException(status_code=409, detail="This game is already in your collection.")
 
     existing_entry = crud.get_wishlist_entry(db, user_id=current_user.id, game_id=game_in_db.id)
     if existing_entry:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Game already in your wishlist.")
+        raise HTTPException(status_code=409, detail="Game already in your wishlist.")
 
-    wishlist_entry = crud.add_game_to_wishlist(
-        db=db,
-        user_id=current_user.id,
-        game_id=game_in_db.id, # CRITICAL: Use internal Game.id
-        priority=wishlist_data.priority,
-        notes=wishlist_data.notes
+    return crud.add_game_to_wishlist(
+        db=db, user_id=current_user.id, game_id=game_in_db.id,
+        priority=wishlist_data.priority, notes=wishlist_data.notes
     )
-    return wishlist_entry
 
-@router.get("/", response_model=List[schemas.WishlistInDB])
-def get_user_wishlist(
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Retrieves all games in the current user's wishlist."""
-    wishlist_entries = crud.get_user_wishlist(db, user_id=current_user.id)
-    for entry in wishlist_entries:
-        if not hasattr(entry, 'game') or entry.game is None:
-            entry.game = crud.get_game_by_bgg_id(db, entry.game_id)
-    return wishlist_entries
-
-@router.put("/{wishlist_entry_id}", response_model=schemas.WishlistInDB)
-def update_game_in_user_wishlist(
-    wishlist_entry_id: int,
+@router.put("/{entry_id}", response_model=schemas.WishlistInDB)
+def update_wishlist_item(
+    entry_id: int,
     wishlist_update: schemas.WishlistUpdate,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Updates priority or notes for a game in the user's wishlist."""
-    db_entry = db.query(models.Wishlist).filter(
-        models.Wishlist.id == wishlist_entry_id,
-        models.Wishlist.user_id == current_user.id
-    ).first()
-
+    """Updates a wishlist item."""
+    db_entry = db.query(models.Wishlist).filter(models.Wishlist.id == entry_id, models.Wishlist.user_id == current_user.id).first()
     if not db_entry:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Wishlist entry not found or not owned by user.")
-
-    updated_entry = crud.update_wishlist_entry(db, wishlist_entry_id=wishlist_entry_id, wishlist_update=wishlist_update)
+        raise HTTPException(status_code=404, detail="Wishlist entry not found.")
+    
+    updated_entry = crud.update_wishlist_entry(db, wishlist_entry_id=entry_id, wishlist_update=wishlist_update)
     db.refresh(updated_entry)
-    updated_entry.game = crud.get_game_by_bgg_id(db, updated_entry.game_id)
     return updated_entry
 
-@router.delete("/{wishlist_entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_game_from_user_wishlist(
-    wishlist_entry_id: int,
+    entry_id: int,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Deletes a game from the user's wishlist."""
-    db_entry = db.query(models.Wishlist).filter(
-        models.Wishlist.id == wishlist_entry_id,
-        models.Wishlist.user_id == current_user.id
-    ).first()
-
+    db_entry = db.query(models.Wishlist).filter(models.Wishlist.id == entry_id, models.Wishlist.user_id == current_user.id).first()
     if not db_entry:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Wishlist entry not found or not owned by user.")
-
-    crud.delete_wishlist_entry(db, wishlist_entry_id)
+        raise HTTPException(status_code=404, detail="Wishlist entry not found")
+    crud.delete_wishlist_entry(db, entry_id=entry_id)
+    return

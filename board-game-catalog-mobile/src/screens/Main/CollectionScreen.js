@@ -2,8 +2,9 @@
 import React, { useContext, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
-import { getUserCollection, deleteCollectionEntry } from '../../api/api';
+import { getUserCollection } from '../../api/api';
 import { useFocusEffect } from '@react-navigation/native';
+import ROUTES from '../../navigation/routes';
 
 const CollectionScreen = ({ navigation }) => {
   const { userToken } = useContext(AuthContext);
@@ -22,24 +23,30 @@ const CollectionScreen = ({ navigation }) => {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { if (userToken) { fetchCollection(); } }, [userToken, fetchCollection]));
-  
-  const handleDeleteOwnedGame = (entryId, gameTitle) => { /* unchanged */ };
+  useFocusEffect(
+    useCallback(() => {
+      if (userToken) {
+        fetchCollection();
+      }
+    }, [userToken, fetchCollection])
+  );
 
   const renderGameItem = ({ item }) => (
     <TouchableOpacity
       style={styles.gameItem}
-      onPress={() => navigation.navigate('GameDetail', { collectionEntry: item })}
+      onPress={() => navigation.navigate(ROUTES.GAME_DETAIL, { collectionEntry: item })}
     >
-      <Text style={styles.gameTitle}>{item.game?.title || 'Unknown Title'}</Text>
-      <Text style={styles.gameInfo}>{item.game?.year_published}</Text>
-      <TouchableOpacity style={styles.removeButton} onPress={(e) => { e.stopPropagation(); handleDeleteOwnedGame(item.id, item.game?.title); }}>
-        <Text style={styles.removeButtonText}>REMOVE</Text>
-      </TouchableOpacity>
+      <View style={styles.gameInfoContainer}>
+        <Text style={styles.gameTitle}>{item.game?.title || 'Unknown Title'}</Text>
+        <Text style={styles.gameInfo}>{item.game?.year_published}</Text>
+        {item.for_sale_trade && <Text style={styles.forSaleTradeText}>FOR SALE/TRADE!</Text>}
+      </View>
     </TouchableOpacity>
   );
 
-  if (isLoading) { return <View style={styles.loadingContainer}><ActivityIndicator size="large" /></View>; }
+  if (isLoading) {
+    return <View style={styles.loadingContainer}><ActivityIndicator size="large" /></View>;
+  }
 
   return (
     <View style={styles.container}>
@@ -47,7 +54,8 @@ const CollectionScreen = ({ navigation }) => {
         data={collection}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderGameItem}
-        ListEmptyComponent={<Text style={styles.emptyText}>Your collection is empty. Go to the "Add Game" tab to add some!</Text>}
+        ListHeaderComponent={<Text style={styles.title}>My Collection</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>Your collection is empty.</Text>}
       />
     </View>
   );
@@ -56,12 +64,39 @@ const CollectionScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  gameItem: { backgroundColor: '#fff', padding: 20, borderRadius: 8, marginVertical: 5, marginHorizontal: 10, },
-  gameTitle: { fontSize: 18, fontWeight: 'bold' },
-  gameInfo: { fontSize: 14, color: '#666', marginTop: 5 },
-  removeButton: { backgroundColor: '#dc3545', padding: 8, borderRadius: 5, marginTop: 10, alignSelf: 'flex-start' },
-  removeButtonText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
-  emptyText: { textAlign: 'center', marginTop: 50, fontSize: 16, color: '#888' },
+  title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginVertical: 20 },
+  gameItem: { 
+    backgroundColor: '#fff', 
+    padding: 20, 
+    borderRadius: 8, 
+    marginVertical: 5, 
+    marginHorizontal: 10,
+  },
+  gameInfoContainer: {
+    flex: 1,
+  },
+  gameTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    flexShrink: 1 
+  },
+  gameInfo: { 
+    fontSize: 14, 
+    color: '#666', 
+    marginTop: 4 
+  },
+  emptyText: { 
+    textAlign: 'center', 
+    marginTop: 50, 
+    fontSize: 16, 
+    color: '#888' 
+  },
+  forSaleTradeText: { 
+    fontSize: 12, 
+    fontWeight: 'bold', 
+    color: '#28a745', 
+    marginTop: 5 
+  },
 });
 
 export default CollectionScreen;
