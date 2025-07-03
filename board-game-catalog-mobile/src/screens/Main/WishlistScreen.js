@@ -33,16 +33,11 @@ const WishlistScreen = ({ navigation }) => {
 
   const handleMoveToCollection = async (item) => {
     try {
-      // --- THIS IS THE FIX ---
-      // We now pass an object to the API function, as required
       await api.addGameToCollection({ game_id: item.game.bgg_id });
-      // After adding to collection, remove from wishlist
-      await api.deleteWishlistEntry(item.id);
+      // The backend now automatically removes the item from the wishlist.
       Alert.alert('Success', `"${item.game.title}" moved to your collection!`);
-      // Refresh the wishlist
-      fetchWishlist();
+      fetchWishlist(); // Just refresh the list
     } catch (error) {
-      console.error("Error moving to collection:", error.response?.data || error);
        if (error.response?.status === 409) {
         Alert.alert("Already Owned", "This game is already in your collection.");
       } else {
@@ -51,22 +46,44 @@ const WishlistScreen = ({ navigation }) => {
     }
   };
 
+  const handleRemoveFromWishlist = (item) => {
+    Alert.alert(
+      "Remove from Wishlist",
+      `Are you sure you want to remove "${item.game.title}" from your wishlist?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.deleteWishlistEntry(item.id);
+              fetchWishlist(); // Refresh the list
+            } catch (e) {
+              Alert.alert("Error", "Could not remove game from wishlist.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderWishlistItem = ({ item }) => (
     <View style={styles.gameItem}>
       <Text style={styles.gameTitle}>{item.game?.title}</Text>
-      <Text style={styles.gameInfo}>Added on: {new Date(item.added_date).toLocaleDateString()}</Text>
+      <Text style={styles.gameInfo}>{item.game?.year_published}</Text>
+      {/* The "Added on" date Text component has been removed */}
       <View style={styles.buttonContainer}>
         <Button title="Move to Collection" onPress={() => handleMoveToCollection(item)} />
+        <View style={{ marginLeft: 10 }}>
+            <Button title="Remove" onPress={() => handleRemoveFromWishlist(item)} color="#dc3545" />
+        </View>
       </View>
     </View>
   );
 
   if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <View style={styles.loadingContainer}><ActivityIndicator size="large" /></View>;
   }
 
   return (
@@ -83,47 +100,14 @@ const WishlistScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: '#f5f5f5',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 10,
-  },
-  gameItem: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
-    marginVertical: 5,
-    marginHorizontal: 10,
-  },
-  gameTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  gameInfo: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 5,
-  },
-  buttonContainer: {
-    marginTop: 10,
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 50,
-    fontSize: 16,
-    color: '#888',
-  },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginVertical: 20 },
+  gameItem: { backgroundColor: '#fff', padding: 20, borderRadius: 8, marginVertical: 5, marginHorizontal: 10 },
+  gameTitle: { fontSize: 18, fontWeight: 'bold' },
+  gameInfo: { fontSize: 14, color: '#666', marginTop: 5 },
+  buttonContainer: { marginTop: 15, flexDirection: 'row', alignSelf: 'flex-start' },
+  emptyText: { textAlign: 'center', marginTop: 50, fontSize: 16, color: '#888' },
 });
 
 export default WishlistScreen;
