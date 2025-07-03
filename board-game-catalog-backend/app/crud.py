@@ -28,6 +28,18 @@ def create_game(db: Session, game: schemas.GameCreate):
     db.refresh(db_game)
     return db_game
 
+# Add this function in app/crud.py, after create_game
+
+def update_game_details(db: Session, db_game: models.Game, game_update: schemas.GameCreate) -> models.Game:
+    """Updates an existing game record with fresh data from BGG."""
+    update_data = game_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_game, key, value)
+    db.add(db_game)
+    db.commit()
+    db.refresh(db_game)
+    return db_game
+
 # --- User Collection CRUD (Restoring missing function) ---
 def get_user_collection_entry(db: Session, user_id: int, game_id: int):
     return db.query(models.UserCollection).filter(
